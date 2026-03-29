@@ -1,5 +1,5 @@
 const CACHE = "tp-tracker-v1";
-const ASSETS = ["/tp-tracker/", "/tp-tracker/index.html", "/tp-tracker/manifest.json"];
+const ASSETS = ["/Madam-Yong/", "/Madam-Yong/index.html", "/Madam-Yong/manifest.json"];
 
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
