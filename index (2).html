@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#ffffff" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="TP Tracker" />
+  <title>TP Tracker</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #1a1a1a; }
+    #app { max-width: 480px; margin: 0 auto; background: #fff; min-height: 100vh; padding: 0 0 32px; }
+
+    .header { padding: 16px 16px 12px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; background: #fff; position: sticky; top: 0; z-index: 10; }
+    .header-left h1 { font-size: 20px; font-weight: 600; }
+    .header-left p { font-size: 12px; color: #666; margin-top: 2px; }
+
+    .sync-badge { font-size: 11px; padding: 3px 10px; border-radius: 20px; font-weight: 500; }
+    .sync-idle    { background: #EAF3DE; color: #3B6D11; }
+    .sync-saving  { background: #FAEEDA; color: #854F0B; }
+    .sync-loading { background: #E6F1FB; color: #185FA5; }
+    .sync-error   { background: #FCEBEB; color: #A32D2D; }
+
+    .tabs { display: flex; gap: 6px; padding: 12px 16px; flex-wrap: wrap; border-bottom: 1px solid #eee; background: #fff; }
+    .tab { padding: 6px 12px; border-radius: 8px; font-size: 13px; border: 1px solid #ddd; background: transparent; color: #666; cursor: pointer; }
+    .tab.active { background: #EBF5FF; color: #1a6fb5; border-color: transparent; font-weight: 500; }
+
+    .content { padding: 14px 16px; }
+
+    .stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-bottom: 14px; }
+    .stat { background: #f5f5f5; border-radius: 10px; padding: 10px; text-align: center; }
+    .stat-num { font-size: 22px; font-weight: 600; }
+    .stat-lbl { font-size: 11px; color: #666; margin-top: 2px; }
+
+    .prog-wrap { margin-bottom: 16px; }
+    .prog-lbl { display: flex; justify-content: space-between; font-size: 12px; color: #666; margin-bottom: 4px; }
+    .prog-bar { height: 6px; background: #eee; border-radius: 3px; overflow: hidden; }
+    .prog-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+
+    .section-label { font-size: 11px; color: #999; letter-spacing: 0.06em; margin-bottom: 8px; text-transform: uppercase; }
+
+    .sk-card { background: #fff; border: 1px solid #eee; border-radius: 14px; padding: 14px; margin-bottom: 10px; }
+    .sk-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; cursor: pointer; }
+    .sk-title { font-size: 14px; font-weight: 600; flex: 1; }
+    .sk-sub { font-size: 12px; color: #888; margin-top: 3px; }
+    .chevron { font-size: 11px; color: #aaa; transition: transform 0.2s; display: inline-block; margin-top: 2px; }
+    .chevron.open { transform: rotate(90deg); }
+
+    .tp-badges { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 8px; }
+    .tp-badge { font-size: 11px; padding: 2px 8px; border-radius: 20px; font-weight: 500; }
+    .tp1 { background: #EAF3DE; color: #3B6D11; }
+    .tp2 { background: #E6F1FB; color: #185FA5; }
+    .tp3 { background: #FAEEDA; color: #854F0B; }
+    .tp4 { background: #EEEDFE; color: #534AB7; }
+    .tp5 { background: #FAECE7; color: #993C1D; }
+    .tp6 { background: #FCEBEB; color: #A32D2D; }
+
+    .sp-list { margin-top: 12px; border-top: 1px solid #f0f0f0; padding-top: 10px; display: none; }
+    .sp-list.open { display: block; }
+    .sp-item { padding: 10px 0; border-bottom: 1px solid #f5f5f5; }
+    .sp-item:last-child { border-bottom: none; }
+    .sp-code { font-size: 11px; color: #999; font-family: monospace; }
+    .sp-desc { font-size: 13px; font-weight: 500; margin: 3px 0; }
+    .sp-cando { font-size: 12px; color: #666; font-style: italic; margin-bottom: 8px; }
+
+    .rekod-btn { width: 100%; padding: 10px; border: 1.5px dashed #ddd; border-radius: 12px; background: transparent; color: #888; font-size: 13px; cursor: pointer; margin-top: 4px; }
+    .rekod-btn:active { background: #f5f5f5; }
+
+    /* Modal */
+    .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.45); z-index: 100; display: flex; align-items: flex-end; justify-content: center; }
+    .modal { background: #fff; border-radius: 20px 20px 0 0; padding: 20px 16px; width: 100%; max-height: 88vh; overflow-y: auto; }
+    .modal-handle { width: 36px; height: 4px; background: #ddd; border-radius: 2px; margin: 0 auto 16px; }
+    .modal-sp-code { font-size: 11px; color: #999; font-family: monospace; }
+    .modal-sp-title { font-size: 15px; font-weight: 600; margin: 4px 0; }
+    .modal-sp-cando { font-size: 12px; color: #666; font-style: italic; }
+
+    .student-row { padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
+    .student-row:last-of-type { border-bottom: none; }
+    .student-name { font-size: 13px; font-weight: 500; margin-bottom: 6px; }
+    .student-controls { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+    .tp-sel { font-size: 13px; border: 1px solid #ddd; border-radius: 8px; padding: 5px 8px; background: #fff; flex: 1; }
+    .date-inp { font-size: 12px; border: 1px solid #ddd; border-radius: 8px; padding: 5px 8px; background: #fff; flex: 1.2; }
+    .evidence-inp { width: 100%; font-size: 12px; padding: 7px 10px; border: 1px solid #ddd; border-radius: 8px; background: #fff; }
+
+    .close-btn { width: 100%; padding: 12px; border-radius: 12px; border: 1px solid #ddd; background: #f5f5f5; color: #333; font-size: 14px; cursor: pointer; margin-top: 14px; font-weight: 500; }
+
+    .loading-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; gap: 12px; color: #666; font-size: 14px; }
+    .spinner { width: 32px; height: 32px; border: 3px solid #eee; border-top-color: #378ADD; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Evidence media */
+    .evidence-row { display: flex; gap: 6px; align-items: center; margin-top: 6px; flex-wrap: wrap; }
+    .media-btn { display: flex; align-items: center; gap: 4px; padding: 6px 12px; border-radius: 20px; border: 1px solid #ddd; background: #f9f9f9; font-size: 12px; color: #444; cursor: pointer; }
+    .media-btn:active { background: #eee; }
+    .media-thumb-wrap { position: relative; display: inline-block; }
+    .media-thumb { width: 56px; height: 56px; object-fit: cover; border-radius: 8px; border: 1px solid #eee; display: block; }
+    .media-del { position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; background: #e24b4a; color: #fff; border-radius: 50%; font-size: 11px; display: flex; align-items: center; justify-content: center; cursor: pointer; border: none; line-height: 1; }
+    .media-gallery { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+    .video-thumb { width: 56px; height: 56px; object-fit: cover; border-radius: 8px; border: 1px solid #eee; }
+  </style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyk15zYzMUc_dQPpZvPO-axVi36IXLDkO8WBvOhE5peufHx3pYf_zDEEiI_0bNCAx_Z/exec";
+
+const DATA = {
+  subjects: [
+    {
+      id: "eng1", name: "English Y1",
+      students: ["Amani","Kayden Chong Jing Ren","Koh Yukon Wei","Ng Sze En","Nur Jannah","Tan Lu Hui","Toh Zi En"],
+      sks: [
+        { code: "1.1", title: "Listening — Recognise & Reproduce Sounds", tp_range: [1,2,3], sps: [
+          { code: "1.1.1", desc: "Recognise and reproduce with support a limited range of high frequency target language phonemes", cando: "Can identify and say target phonemes (e.g. /s/, /ae/, /t/, /p/) when prompted" },
+        ]},
+        { code: "1.2", title: "Listening — Understand Meaning", tp_range: [1,2,3], sps: [
+          { code: "1.2.1", desc: "Understand with support the main idea of very simple phrases and sentences", cando: "Can identify the topic of a very short spoken text" },
+          { code: "1.2.2", desc: "Understand with support specific information and details of very simple phrases and sentences", cando: "Can answer simple 'who' or 'what' questions about a spoken sentence" },
+          { code: "1.2.3", desc: "Understand with a high degree of support very short simple narratives", cando: "Can sequence 3 pictures based on a short story heard" },
+          { code: "1.2.4", desc: "Understand short basic supported classroom instructions", cando: "Can follow 1-step classroom instructions with gesture support" },
+          { code: "1.2.5", desc: "Understand short supported questions", cando: "Can respond with yes/no or one word to simple questions with visual support" },
+        ]},
+        { code: "1.3", title: "Listening — Understand Classroom Language", tp_range: [1,2], sps: [
+          { code: "1.3.1", desc: "Predict words they will hear by using knowledge of a topic", cando: "Can guess a word from a topic clue before listening" },
+        ]},
+        { code: "2.1", title: "Speaking — Communicate Simple Information", tp_range: [1,2,3], sps: [
+          { code: "2.1.1", desc: "Give very basic personal information using fixed phrases", cando: "Can say 'My name is...' and 'I am ... years old.'" },
+          { code: "2.1.2", desc: "Find out about very basic personal information using fixed phrases", cando: "Can ask 'What is your name?' and 'How old are you?'" },
+          { code: "2.1.3", desc: "Express basic likes and dislikes", cando: "Can say 'I like...' and 'I don't like...' with a noun" },
+          { code: "2.1.4", desc: "Greet, say goodbye, and express thanks using suitable fixed phrases", cando: "Can say 'Hello', 'Goodbye', 'Thank you' appropriately" },
+          { code: "2.1.5", desc: "Name or describe objects using suitable words from word sets", cando: "Can name 5 classroom objects or colours correctly" },
+        ]},
+        { code: "2.2", title: "Speaking — Maintain Communication", tp_range: [1,2], sps: [
+          { code: "2.2.2", desc: "Ask for attention or help from a teacher or classmate using one word or fixed phrases", cando: "Can say 'Excuse me' or 'Help please' appropriately" },
+        ]},
+        { code: "2.3", title: "Speaking — Communicate Appropriately", tp_range: [1,2,3], sps: [
+          { code: "2.3.1", desc: "Introduce self to an audience using fixed phrases", cando: "Can say 'My name is...' when introducing themselves to the class" },
+        ]},
+        { code: "3.1", title: "Reading — Recognise Words & Decode", tp_range: [1,2,3,4], sps: [
+          { code: "3.1.1", desc: "Identify and recognise the shapes of the letters in the alphabet", cando: "Can match and name all 26 uppercase and lowercase letters" },
+          { code: "3.1.2", desc: "Recognise and sound out with support beginning, medial and final sounds in a word", cando: "Can identify beginning, middle and end sound of a simple word" },
+          { code: "3.1.3", desc: "Blend phonemes (CVC, CCVC)", cando: "Can blend sounds to read simple CVC and CCVC words" },
+          { code: "3.1.4", desc: "Segment phonemes (CVC, CCVC)", cando: "Can break a CVC or CCVC word into individual sounds" },
+        ]},
+        { code: "3.2", title: "Reading — Understand Texts", tp_range: [1,2,3], sps: [
+          { code: "3.2.1", desc: "Understand the main idea of very simple phrases and sentences", cando: "Can choose the right picture to match a simple sentence" },
+          { code: "3.2.2", desc: "Understand specific information and details of very simple phrases and sentences", cando: "Can find specific words or details in a short text" },
+          { code: "3.2.3", desc: "Use visuals on the page to help understand a word or phrase / Identify key words", cando: "Can use pictures to guess the meaning of unknown words" },
+          { code: "3.2.4", desc: "Use with support a simple picture dictionary to find, list and categorise words", cando: "Can locate a word in a picture dictionary" },
+        ]},
+        { code: "3.3", title: "Reading — Read for Pleasure", tp_range: [1,2,3], sps: [
+          { code: "3.3.1", desc: "Read and enjoy simple print and digital games at word level", cando: "Can play a simple word matching digital game independently" },
+        ]},
+        { code: "4.1", title: "Writing — Form Letters & Words", tp_range: [1,2], sps: [
+          { code: "4.1.1", desc: "Demonstrate fine motor control / correct posture / hand-eye coordination through drawing lines", cando: "Can hold pencil correctly and trace letters without lifting hand" },
+          { code: "4.1.2", desc: "Form upper and lower case letters of regular size and shape / Write left to right / Copy high frequency words", cando: "Can write all letters legibly and copy 5 high frequency words correctly" },
+        ]},
+        { code: "4.2", title: "Writing — Communicate Basic Information", tp_range: [1,2,3], sps: [
+          { code: "4.2.1", desc: "Give very basic personal information using fixed phrases", cando: "Can write 'My name is...' and 'I am ... years old.'" },
+          { code: "4.2.2", desc: "Greet, say goodbye, and express thanks using suitable fixed phrases", cando: "Can write 'Hello', 'Thank you' in a short note" },
+          { code: "4.2.3", desc: "Express basic likes and dislikes", cando: "Can write 'I like...' or 'I don't like...' with a noun" },
+          { code: "4.2.4", desc: "Name or describe objects using suitable words from word sets", cando: "Can label 5 objects in a picture correctly" },
+          { code: "4.2.5", desc: "Connect words and proper names using 'and'", cando: "Can write 'I like cats and dogs.' using 'and'" },
+        ]},
+        { code: "4.3", title: "Writing — Appropriate Style", tp_range: [2,3,4], sps: [
+          { code: "4.3.1", desc: "Use capital letters appropriately in personal and place names", cando: "Can write names with correct capital letters" },
+          { code: "4.3.2", desc: "Spell familiar high frequency words accurately", cando: "Can spell 10 familiar high frequency words correctly from memory" },
+          { code: "4.3.3", desc: "Plan and write words and phrases on a narrow range of familiar topics", cando: "Can write 3 words or phrases about a familiar topic" },
+        ]},
+        { code: "5.1", title: "Language Arts — Enjoy & Appreciate", tp_range: [1,2,3], sps: [
+          { code: "5.1.1", desc: "Demonstrate appreciation through non-verbal responses to simple chants, rhymes and songs", cando: "Can clap, mime or move in response to a simple song or chant" },
+          { code: "5.1.2", desc: "Say the words in simple texts, and sing simple songs with intelligible pronunciation", cando: "Can say/sing words of a simple song with clear pronunciation" },
+        ]},
+        { code: "5.2", title: "Language Arts — Personal Response", tp_range: [1,2,3], sps: [
+          { code: "5.2.1", desc: "Name people, things or places of interest in illustrations accompanying texts", cando: "Can point to and name characters or objects in a picture book" },
+        ]},
+        { code: "5.3", title: "Language Arts — Imaginative Response", tp_range: [2,3,4], sps: [
+          { code: "5.3.1", desc: "Respond imaginatively and intelligibly through creating simple art and craft work / simple actions", cando: "Can create a drawing or perform actions to respond to a story or song" },
+        ]},
+      ]
+    },
+    {
+      id: "eng2", name: "English Y2",
+      students: ["Tan Jing Lun","Tan Jing Yi","Toh Guan Wei"],
+      sks: [
+        { code: "1.1", title: "Listening — Recognise & Reproduce Sounds", tp_range: [1,2,3], sps: [
+          { code: "1.1.1", desc: "Recognise and reproduce with support a range of high frequency target language phonemes", cando: "Can distinguish and produce phonemes in familiar words correctly" },
+        ]},
+        { code: "1.2", title: "Listening — Understand Meaning", tp_range: [1,2,3,4], sps: [
+          { code: "1.2.1", desc: "Understand with support the main idea of simple sentences", cando: "Can identify what a short listening text is mainly about" },
+          { code: "1.2.2", desc: "Understand with support specific information and details of simple sentences", cando: "Can answer 'who', 'what', 'where' questions about a listening text" },
+          { code: "1.2.3", desc: "Understand with support very short simple narratives", cando: "Can retell a simple 3-sentence story heard aloud" },
+          { code: "1.2.4", desc: "Understand an increased range of short basic supported classroom instructions", cando: "Can follow 2-step classroom instructions with some support" },
+          { code: "1.2.5", desc: "Understand an increased range of short supported questions", cando: "Can respond appropriately to a variety of simple question types" },
+        ]},
+        { code: "1.3", title: "Listening — Understand Classroom Language", tp_range: [1,2], sps: [
+          { code: "1.3.1", desc: "Understand the message the teacher or classmate is communicating by using appropriate listening strategies", cando: "Can respond correctly to a peer's spoken instruction or request" },
+        ]},
+        { code: "2.1", title: "Speaking — Communicate Simple Information", tp_range: [1,2,3,4], sps: [
+          { code: "2.1.1", desc: "Give simple personal information using basic statements", cando: "Can talk about themselves using simple sentences" },
+          { code: "2.1.2", desc: "Find out about basic personal information using basic questions", cando: "Can ask 'What is your favourite...?' and respond" },
+          { code: "2.1.3", desc: "Give a short sequence of basic instructions", cando: "Can give 2-3 step instructions clearly (e.g. 'Stand up. Turn around.')" },
+          { code: "2.1.4", desc: "Ask about and express ability", cando: "Can say 'Can you swim?' and reply 'Yes I can / No I can't'" },
+          { code: "2.1.5", desc: "Describe objects using suitable words and phrases", cando: "Can describe an object using colour, size and shape" },
+        ]},
+        { code: "2.2", title: "Speaking — Maintain Communication", tp_range: [1,2,3], sps: [
+          { code: "2.2.1", desc: "Keep interaction going in short exchanges by using suitable non-verbal responses", cando: "Can nod, gesture or use 'yes/no/mm' to keep a conversation going" },
+          { code: "2.2.2", desc: "Ask for attention or help from a teacher or classmate by using suitable words", cando: "Can say 'Excuse me', 'Can you help me?' appropriately" },
+        ]},
+        { code: "2.3", title: "Speaking — Communicate Appropriately", tp_range: [1,2,3], sps: [
+          { code: "2.3.1", desc: "Introduce self and others to an audience using fixed phrases", cando: "Can say 'My name is...' and 'This is my friend...' to the class" },
+        ]},
+        { code: "3.1", title: "Reading — Recognise Words & Decode", tp_range: [1,2,3], sps: [
+          { code: "3.1.1", desc: "Identify, recognise and name the letters of the alphabet", cando: "Can name all 26 letters in order and out of order" },
+          { code: "3.1.2", desc: "Recognise and sound out with some support beginning, medial and final sounds in a word", cando: "Can sound out an unfamiliar CVC word independently" },
+          { code: "3.1.3", desc: "Blend phonemes (CVC, CCVC, CVCV, CCV)", cando: "Can read simple 3-4 letter words by blending sounds" },
+          { code: "3.1.4", desc: "Segment phonemes (CVC, CCVC, CVCV, CCV)", cando: "Can clap out syllables and identify individual phonemes in words" },
+        ]},
+        { code: "3.2", title: "Reading — Understand Texts", tp_range: [2,3,4,5], sps: [
+          { code: "3.2.1", desc: "Understand the main idea of simple sentences", cando: "Can identify the main idea of a short paragraph" },
+          { code: "3.2.2", desc: "Understand specific information and details of simple sentences", cando: "Can answer detail questions about a short reading text" },
+          { code: "3.2.3", desc: "Reread a word, phrase or sentence to understand meaning / ignore unknown words", cando: "Can self-correct by rereading when meaning breaks down" },
+          { code: "3.2.4", desc: "Use a picture dictionary to find, list and categorise words from Year 2 topics", cando: "Can find a word in a picture dictionary and use it in a sentence" },
+        ]},
+        { code: "3.3", title: "Reading — Read for Pleasure", tp_range: [1,2,3], sps: [
+          { code: "3.3.1", desc: "Read and enjoy simple print and digital games at sentence level", cando: "Can read and play a sentence-level digital language game" },
+        ]},
+        { code: "4.2", title: "Writing — Communicate Information", tp_range: [2,3,4], sps: [
+          { code: "4.2.1", desc: "Ask for and give basic personal information using basic questions and statements", cando: "Can write 3 sentences about themselves with correct punctuation" },
+          { code: "4.2.2", desc: "Express simple ability", cando: "Can write 'I can...' and 'I can't...' about themselves" },
+          { code: "4.2.3", desc: "Write short familiar instructions", cando: "Can write 3 simple instructions (e.g. for a game or recipe)" },
+          { code: "4.2.4", desc: "Describe objects using suitable words and phrases", cando: "Can write 2 descriptive sentences using adjectives" },
+          { code: "4.2.5", desc: "Connect words and phrases using basic conjunctions", cando: "Can write a sentence using 'and', 'but' or 'because'" },
+        ]},
+        { code: "4.3", title: "Writing — Appropriate Style", tp_range: [3,4,5], sps: [
+          { code: "4.3.1", desc: "Use capital letters and full stops appropriately in guided writing at sentence level", cando: "Can punctuate 5 sentences correctly in a guided writing task" },
+          { code: "4.3.2", desc: "Spell a narrow range of familiar high frequency words accurately in guided writing", cando: "Can spell 20 high frequency words correctly in a dictation" },
+          { code: "4.3.3", desc: "Plan, draft and write simple sentences", cando: "Can plan and write 3 simple sentences on a familiar topic" },
+        ]},
+        { code: "5.1", title: "Language Arts — Enjoy & Appreciate", tp_range: [1,2,3], sps: [
+          { code: "5.1.1", desc: "Demonstrate appreciation through non-verbal responses to simple chants, rhymes and songs", cando: "Can clap, mime or move in response to a simple song or chant" },
+          { code: "5.1.2", desc: "Say the words in simple texts and sing simple songs with intelligible pronunciation", cando: "Can sing a simple song clearly and with correct rhythm" },
+        ]},
+        { code: "5.2", title: "Language Arts — Personal Response", tp_range: [2,3,4], sps: [
+          { code: "5.2.1", desc: "Name people, things, actions or places of interest in texts", cando: "Can identify and name key elements in an illustrated text" },
+        ]},
+        { code: "5.3", title: "Language Arts — Imaginative Response", tp_range: [3,4,5], sps: [
+          { code: "5.3.1", desc: "Respond imaginatively and intelligibly through creating simple short creative works", cando: "Can create a simple poem, drawing or action sequence based on a text" },
+        ]},
+      ]
+    },
+    {
+      id: "eng3", name: "English Y3",
+      students: ["Eh Jun Young","Jayden Chong Jin Herng","Look Rui Xun","Low Yao Jia","Kayyisa","Tan Ee Hong","Toh Zi Han"],
+      sks: [
+        { code: "1.1", title: "Listening — Recognise & Reproduce Sounds", tp_range: [1,2], sps: [
+          { code: "1.1.1", desc: "Recognise and reproduce with support a range of target language phonemes", cando: "Can say phonemes accurately in the context of words and phrases" },
+        ]},
+        { code: "1.2", title: "Listening — Understand Meaning", tp_range: [2,3,4], sps: [
+          { code: "1.2.1", desc: "Understand with support the main idea of short simple texts", cando: "Can state the main idea of a short listening passage" },
+          { code: "1.2.2", desc: "Understand with support specific information and details of short simple texts", cando: "Can answer 3 comprehension questions about a listened text" },
+          { code: "1.2.3", desc: "Understand with support short simple narratives", cando: "Can retell key events of a short story heard" },
+          { code: "1.2.4", desc: "Understand a wide range of short basic supported classroom instructions", cando: "Can follow multi-step instructions with minimal support" },
+          { code: "1.2.5", desc: "Understand a wide range of short supported questions", cando: "Can respond correctly to various Wh- and Yes/No questions" },
+        ]},
+        { code: "1.3", title: "Listening — Understand Classroom Language", tp_range: [1,2,3], sps: [
+          { code: "1.3.1", desc: "Guess the meaning of unfamiliar words by using visual clues when a teacher or classmate is speaking", cando: "Can use gestures, images or context to guess an unknown word" },
+        ]},
+        { code: "2.1", title: "Speaking — Communicate Simple Information", tp_range: [2,3,4], sps: [
+          { code: "2.1.1", desc: "Ask about and express basic opinions", cando: "Can say 'I think...' or 'I like/don't like... because...' simply" },
+          { code: "2.1.2", desc: "Find out about and describe basic everyday routines", cando: "Can describe their daily routine using simple present tense" },
+          { code: "2.1.3", desc: "Give a short sequence of basic directions", cando: "Can give 3-step directions to a place using prepositions" },
+          { code: "2.1.5", desc: "Describe people and objects using suitable words and phrases", cando: "Can describe a person's appearance using at least 3 adjectives" },
+        ]},
+        { code: "2.2", title: "Speaking — Maintain Communication", tp_range: [2,3,4], sps: [
+          { code: "2.2.1", desc: "Keep interaction going in short exchanges by repeating key words from the other speaker", cando: "Can echo or respond to a partner's key words in a short dialogue" },
+          { code: "2.2.2", desc: "Ask for attention or help from a teacher or classmate by using suitable words", cando: "Can use 'Excuse me' and 'Could you help me with...' correctly" },
+        ]},
+        { code: "2.3", title: "Speaking — Communicate Appropriately", tp_range: [3,4,5], sps: [
+          { code: "2.3.1", desc: "Narrate very short basic stories and events", cando: "Can tell a short 3-sentence personal story to the class" },
+        ]},
+        { code: "3.2", title: "Reading — Understand Texts", tp_range: [2,3,4,5], sps: [
+          { code: "3.2.1", desc: "Understand the main idea of short simple texts", cando: "Can identify the topic sentence of a paragraph" },
+          { code: "3.2.2", desc: "Understand specific information and details of short simple texts", cando: "Can answer 5 detail questions from a reading passage" },
+          { code: "3.2.3", desc: "Guess the meaning of unfamiliar words from clues provided by visuals and the topic", cando: "Can use picture clues to work out the meaning of 3 new words" },
+          { code: "3.2.4", desc: "Recognise and use with support key features of a simple monolingual dictionary", cando: "Can look up a word in a dictionary and use the definition" },
+        ]},
+        { code: "3.3", title: "Reading — Read for Pleasure", tp_range: [2,3,4], sps: [
+          { code: "3.3.1", desc: "Read and enjoy A1 fiction/non-fiction print and digital texts of interest", cando: "Can read a short A1-level story or article and say what it is about" },
+        ]},
+        { code: "4.1", title: "Writing — Cursive Handwriting", tp_range: [1,2], sps: [
+          { code: "4.1.2", desc: "Begin to use cursive handwriting in a limited range of written work", cando: "Can write a paragraph of 4 sentences in neat cursive script" },
+        ]},
+        { code: "4.2", title: "Writing — Communicate Information", tp_range: [2,3,4], sps: [
+          { code: "4.2.1", desc: "Express simple opinions", cando: "Can write 'I think... because...' about a familiar topic" },
+          { code: "4.2.2", desc: "Make and give reasons for simple predictions", cando: "Can write 'I think... will happen because...' about a story" },
+          { code: "4.2.3", desc: "Give simple directions", cando: "Can write directions from one place to another in 3 steps" },
+          { code: "4.2.4", desc: "Describe people and objects using suitable words and phrases", cando: "Can write a short description of a person using adjectives" },
+          { code: "4.2.5", desc: "Connect sentences using basic coordinating conjunctions", cando: "Can write sentences joined by 'and', 'but', 'or', 'so'" },
+        ]},
+        { code: "4.3", title: "Writing — Appropriate Style", tp_range: [3,4,5], sps: [
+          { code: "4.3.1", desc: "Use capital letters, full stops and question marks appropriately in guided writing at sentence level", cando: "Can independently punctuate a short paragraph correctly" },
+          { code: "4.3.2", desc: "Spell an increased range of familiar high frequency words accurately in guided writing", cando: "Can spell 30 high frequency words correctly from memory" },
+          { code: "4.3.3", desc: "Plan, draft and write an increased range of simple sentences", cando: "Can plan and write a short paragraph of 5 sentences independently" },
+        ]},
+        { code: "5.1", title: "Language Arts — Enjoy & Appreciate", tp_range: [2,3], sps: [
+          { code: "5.1.1", desc: "Enjoy and appreciate rhymes, poems and songs", cando: "Can recite a poem or sing a song with expression and enjoyment" },
+          { code: "5.1.2", desc: "Enjoy and appreciate simple poems in addition to Year 2 text types", cando: "Can read a simple poem aloud with expression and rhythm" },
+        ]},
+        { code: "5.2", title: "Language Arts — Personal Response", tp_range: [3,4,5], sps: [
+          { code: "5.2.1", desc: "Ask and answer simple questions about characters, actions and events of interest in a text", cando: "Can ask and answer 3 questions about a story character" },
+        ]},
+        { code: "5.3", title: "Language Arts — Imaginative Response", tp_range: [4,5,6], sps: [
+          { code: "5.3.1", desc: "Respond imaginatively and intelligibly through creating simple action songs on familiar topics", cando: "Can create and perform a short action song or simple poem" },
+        ]},
+      ]
+    },
+    {
+      id: "math6", name: "Matematik Y6",
+      students: ["Ng Jing Ru"],
+      sks: [
+        { code: "1.1", title: "整数 — 10,000,000 以内的整数", tp_range: [1,2,3,4,5,6], sps: [
+          { code: "1.1.1", desc: "读出、说出和写出任何 10,000,000 以内的数目", cando: "能正确读出及写出任何七位数" },
+          { code: "1.1.2", desc: "表示 10,000,000 以内的数目和确定有规律的数列", cando: "能用计算工具表示数目并写出数列规律" },
+          { code: "1.1.3", desc: "读出、说出和写出以百万为单位的分数（分母为 2、4、5、8、10）", cando: "能读出及写出如 2½ 百万等涉及百万为单位的分数" },
+          { code: "1.1.4", desc: "读出、说出和写出以百万为单位的小数（至三位小数）", cando: "能读出及写出如 1.235 百万等小数" },
+          { code: "1.1.5", desc: "换算以百万为单位的小数和分数为整数和反之", cando: "能正确换算百万单位小数与整数" },
+        ]},
+        { code: "1.2", title: "基本运算和混合运算", tp_range: [1,2,3,4,5,6], sps: [
+          { code: "1.2.1", desc: "完成涉及整数、百万为单位的分数和小数，包括未知数的基本运算及有括号和无括号的混合运算算式", cando: "能正确完成含括号及未知数的混合运算" },
+        ]},
+        { code: "1.3", title: "质数和合数", tp_range: [2,3,4], sps: [
+          { code: "1.3.1", desc: "将 100 以内的数目归类为质数和合数", cando: "能列出 100 以内全部质数并解释为何 0 和 1 不是质数" },
+        ]},
+        { code: "1.4", title: "解决问题 — 整数", tp_range: [4,5,6], sps: [
+          { code: "1.4.1", desc: "解答涉及日常生活与整数、质数、合数、百万为单位的分数和小数的问题", cando: "能运用波利亚模式解答涉及整数的日常生活应用题" },
+        ]},
+        { code: "2.1", title: "分数 — 除法运算", tp_range: [2,3,4,5,6], sps: [
+          { code: "2.1.1", desc: "进行二个数的除法，涉及真分数、整数和带分数（分母在 10 以内）", cando: "能正确计算涉及真分数与带分数的除法" },
+        ]},
+        { code: "2.2", title: "小数 — 乘法与除法", tp_range: [2,3,4,5], sps: [
+          { code: "2.2.1", desc: "进行小数与小数的乘法，其答案至三位小数", cando: "能正确计算小数乘法，答案精确至三位小数" },
+          { code: "2.2.2", desc: "进行小数与小数的除法，其答案至三位小数", cando: "能正确计算小数除法，答案精确至三位小数" },
+        ]},
+        { code: "2.3", title: "百分比", tp_range: [2,3,4,5], sps: [
+          { code: "2.3.1", desc: "把小数化为大于 100% 的百分比和反之", cando: "能换算如 1.25 = 125% 等大于 100% 的百分比" },
+          { code: "2.3.2", desc: "解答百分比的加法和减法的算式", cando: "能计算百分比加减法算式" },
+          { code: "2.3.3", desc: "从有小数的数量确定至大于 100% 的百分比和反之", cando: "能从实际数量计算出大于 100% 的百分比" },
+        ]},
+        { code: "2.4", title: "混合运算 — 分数、小数、百分比", tp_range: [3,4,5,6], sps: [
+          { code: "2.4.1", desc: "完成整数、小数、分数及有括号和无括号的混合运算算式，涉及任何两个基本运算", cando: "能完成任意两种基本运算混合的算式" },
+        ]},
+      ]
+    },
+    {
+      id: "rbt6", name: "RBT Y6",
+      students: ["Ng Jing Ru"],
+      sks: [
+        { code: "5.2", title: "机电产品设计 (单元一：妹妹的礼物)", tp_range: [1,2,3,4,5,6], sps: [
+          { code: "5.2.1", desc: "确认机电系统的元素", cando: "能列出机电系统的基本元素（电源、控制器、传感器等）" },
+          { code: "5.2.2", desc: "阐释机电系统的元素", cando: "能解释每个机电元素的功能" },
+          { code: "5.2.3", desc: "绘制含有机电元素的产品的设计草图", cando: "能画出含标注的机电产品设计草图" },
+          { code: "5.2.4", desc: "评估所选择的草图以进行改进和优化设计", cando: "能比较两个草图并说明改进理由" },
+          { code: "5.2.5", desc: "根据草图，制造产品", cando: "能按草图使用适当工具和材料制作产品" },
+          { code: "5.2.6", desc: "呈现所制作的产品", cando: "能向班级展示产品并解释其功能" },
+        ]},
+        { code: "6.5", title: "机器人系统 (单元二：机器龙来啦！)", tp_range: [1,2,3,4,5,6], sps: [
+          { code: "6.5.1", desc: "列举机器人系统的元素", cando: "能说出机器人系统的各个组成部分" },
+          { code: "6.5.2", desc: "描述机器人系统的元素", cando: "能描述每个机器人元素的作用" },
+          { code: "6.5.3", desc: "阐释装置机器人的元件", cando: "能解释如何安装机器人各元件" },
+          { code: "6.5.4", desc: "绘制具有机器人系统元素的产品的草图", cando: "能绘制标注清晰的机器人产品草图" },
+          { code: "6.5.5", desc: "评估被选择的草图以进行改进和优化设计", cando: "能分析草图并提出至少两个改进点" },
+          { code: "6.5.6", desc: "以流程图呈现将要制作的机器人", cando: "能画出正确的机器人制作流程图" },
+          { code: "6.5.7", desc: "根据所制作的流程图，编写程序", cando: "能根据流程图写出正确的控制程序" },
+          { code: "6.5.8", desc: "根据草图，使用适当的工具来制作产品和装置电子元件", cando: "能安全使用工具装置电子元件" },
+          { code: "6.5.9", desc: "装置所编写的程序到机器龙，以进行功能测试", cando: "能上传程序并测试机器人功能" },
+          { code: "6.5.10", desc: "总结和呈现所制作的产品", cando: "能向班级总结并展示完成的机器人" },
+        ]},
+        { code: "8.1", title: "制作产品 (单元三：小发明，大用途！)", tp_range: [1,2,3,4,5,6], sps: [
+          { code: "8.1.1", desc: "根据情景，描述将要制作的产品", cando: "能根据情境说明产品的用途和目标用户" },
+          { code: "8.1.2", desc: "结合基本设计与科技，描述将要设计的制作产品", cando: "能将科技知识融入产品设计描述中" },
+          { code: "8.1.3", desc: "描绘将要制作的产品设计草图", cando: "能画出清晰的产品草图并标注各部分" },
+          { code: "8.1.4", desc: "评估和改进所筛选的草图", cando: "能指出草图的优缺点并作出改进" },
+          { code: "8.1.5", desc: "准备所需的工具和材料、预算成本和设计工作表", cando: "能列出所需材料清单并估算成本" },
+          { code: "8.1.6", desc: "根据所制作的草图，进行制作", cando: "能按草图安全制作产品" },
+          { code: "8.1.7", desc: "以简单的文件资料记录制作过程，然后进行呈献", cando: "能以图文记录制作过程并向班级呈献" },
+        ]},
+      ]
+    }
+  ]
+};
+
+// ── State ──────────────────────────────────────────────
+let state = {
+  activeSubject: "eng1",
+  expandedSK: null,
+  records: {},
+  syncStatus: "loading",
+  modal: null,
+  saveTimer: null,
+};
+
+// ── Google Sheets API ──────────────────────────────────
+function loadRecords() {
+  setState({ syncStatus: "loading" });
+  fetch(`${SCRIPT_URL}?action=getAll`)
+    .then(r => r.json())
+    .then(data => { if (!data.error) setState({ records: data }); setState({ syncStatus: "idle" }); render(); })
+    .catch(() => setState({ syncStatus: "error", render: true }));
+}
+
+function saveRecord(key, value, subjectId) {
+  clearTimeout(state.saveTimer);
+  setState({ syncStatus: "saving" });
+  const timer = setTimeout(() => {
+    fetch(SCRIPT_URL, {
+      method: "POST",
+      body: JSON.stringify({ action: "save", key, ...value, subjectId }),
+    })
+      .then(r => r.json())
+      .then(d => { setState({ syncStatus: d.success ? "idle" : "error" }); renderSyncBadge(); })
+      .catch(() => { setState({ syncStatus: "error" }); renderSyncBadge(); });
+  }, 800);
+  setState({ saveTimer: timer });
+}
+
+// ── Helpers ────────────────────────────────────────────
+function setState(patch) { Object.assign(state, patch); }
+
+function getSub() { return DATA.subjects.find(s => s.id === state.activeSubject); }
+
+function countMastered(subId, spCode) {
+  const s = DATA.subjects.find(x => x.id === subId);
+  if (!s) return 0;
+  return s.students.filter(st => {
+    const k = `${subId}__${spCode}__${st}`;
+    return state.records[k]?.tp && state.records[k].tp !== "0";
+  }).length;
+}
+
+function tpBadges(tp_range) {
+  return tp_range.map(t => `<span class="tp-badge tp${t}">TP${t}</span>`).join("");
+}
+
+function syncBadgeHTML(status) {
+  const map = { idle: ["sync-idle","Tersimpan ✓"], saving: ["sync-saving","Menyimpan…"], loading: ["sync-loading","Memuatkan…"], error: ["sync-error","Ralat ✗"] };
+  const [cls, txt] = map[status] || map.idle;
+  return `<span class="sync-badge ${cls}">${txt}</span>`;
+}
+
+function progBar(pct, color) {
+  return `<div class="prog-bar"><div class="prog-fill" style="width:${pct}%;background:${color}"></div></div>`;
+}
+
+// ── Render ─────────────────────────────────────────────
+function renderSyncBadge() {
+  document.querySelectorAll(".sync-badge-slot").forEach(el => { el.innerHTML = syncBadgeHTML(state.syncStatus); });
+}
+
+function render() {
+  const sub = getSub();
+  const total = sub.sks.reduce((a,sk) => a+sk.sps.length, 0);
+  const mastered = sub.sks.reduce((a,sk) => a+sk.sps.reduce((b,sp) => b+countMastered(sub.id,sp.code),0),0);
+  const pct = total > 0 ? Math.round(mastered/(total*sub.students.length)*100) : 0;
+
+  let html = `
+    <div class="header">
+      <div class="header-left">
+        <h1>TP Tracker</h1>
+        <p>${sub.name} — ${sub.students.length} murid</p>
+      </div>
+      <span class="sync-badge-slot">${syncBadgeHTML(state.syncStatus)}</span>
+    </div>
+    <div class="tabs">
+      ${DATA.subjects.map(s => `<button class="tab${s.id===state.activeSubject?" active":""}" onclick="switchSub('${s.id}')">${s.name}</button>`).join("")}
+    </div>
+    <div class="content">
+      <div class="stats">
+        <div class="stat"><div class="stat-num">${sub.students.length}</div><div class="stat-lbl">Murid</div></div>
+        <div class="stat"><div class="stat-num">${sub.sks.length}</div><div class="stat-lbl">SK</div></div>
+        <div class="stat"><div class="stat-num">${pct}%</div><div class="stat-lbl">Rekod</div></div>
+      </div>
+      <div class="prog-wrap">
+        <div class="prog-lbl"><span>Kemajuan rekod</span><span>${mastered}/${total*sub.students.length}</span></div>
+        ${progBar(pct,"#378ADD")}
+      </div>
+      <div class="section-label">Standard Kandungan</div>
+      ${sub.sks.map(sk => {
+        const key = `${sub.id}_${sk.code}`;
+        const isOpen = state.expandedSK === key;
+        return `
+        <div class="sk-card">
+          <div class="sk-header" onclick="toggleSK('${key}')">
+            <div style="flex:1">
+              <div class="sk-title">${sk.code} — ${sk.title}</div>
+              <div class="sk-sub">${sk.sps.length} Standard Pembelajaran</div>
+              <div class="tp-badges">${tpBadges(sk.tp_range)}</div>
+            </div>
+            <span class="chevron${isOpen?" open":""}">▶</span>
+          </div>
+          <div class="sp-list${isOpen?" open":""}">
+            ${sk.sps.map(sp => {
+              const m = countMastered(sub.id, sp.code);
+              const spPct = Math.round(m/sub.students.length*100);
+              return `
+              <div class="sp-item">
+                <div class="sp-code">${sp.code}</div>
+                <div class="sp-desc">${sp.desc}</div>
+                <div class="sp-cando">✓ ${sp.cando}</div>
+                <div class="prog-wrap" style="margin-bottom:8px">
+                  <div class="prog-lbl"><span>Penguasaan</span><span>${m}/${sub.students.length}</span></div>
+                  ${progBar(spPct,"#1D9E75")}
+                </div>
+                <button class="rekod-btn" onclick="openModal('${sub.id}','${sk.code}','${sp.code}')">+ Rekod TP murid</button>
+              </div>`;
+            }).join("")}
+          </div>
+        </div>`;
+      }).join("")}
+    </div>`;
+
+  document.getElementById("app").innerHTML = html;
+  if (state.modal) renderModal();
+}
+
+function renderModal() {
+  const { subId, skCode, spCode } = state.modal;
+  const sub = DATA.subjects.find(s => s.id === subId);
+  const sk = sub.sks.find(s => s.code === skCode);
+  const sp = sk.sps.find(s => s.code === spCode);
+
+  const rows = sub.students.map(student => {
+    const key = `${subId}__${spCode}__${student}`;
+    const rec = state.records[key] || {};
+    return `
+    <div class="student-row">
+      <div class="student-name">${student}</div>
+      <div class="student-controls">
+        <select class="tp-sel" onchange="updateRecord('${key}','tp',this.value,'${subId}')">
+          <option value="0"${(!rec.tp||rec.tp==="0")?" selected":""}>— TP</option>
+          ${[1,2,3,4,5,6].map(n=>`<option value="${n}"${rec.tp===String(n)?" selected":""}>${"TP"+n}</option>`).join("")}
+        </select>
+        <input class="date-inp" type="date" value="${rec.date||""}" onchange="updateRecord('${key}','date',this.value,'${subId}')">
+      </div>
+      <input class="evidence-inp" type="text" placeholder="Catatan / nota…" value="${rec.evidence||\"\"}" onchange="updateRecord('${key}','evidence',this.value,'${subId}')">\n      <div class="evidence-row">\n        <label class="media-btn">📷 Foto<input type="file" accept="image/*" capture="environment" style="display:none" onchange="addMedia('${key}','${subId}',this)"></label>\n        <label class="media-btn">🎥 Video<input type="file" accept="video/*" capture="environment" style="display:none" onchange="addMedia('${key}','${subId}',this)"></label>\n        <label class="media-btn">🖼️ Galeri<input type="file" accept="image/*,video/*" multiple style="display:none" onchange="addMedia('${key}','${subId}',this)"></label>\n      </div>\n      <div class="media-gallery" id="gal_${key.replace(/[^a-z0-9]/gi,'_')}">${renderGallery(key)}</div>\n    </div>`;\n  }).join("");\n  }).join("");
+
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.id = "modal-overlay";
+  overlay.onclick = e => { if (e.target === overlay) closeModal(); };
+  overlay.innerHTML = `
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span class="modal-sp-code">${sk.code} › ${sp.code}</span>
+        <span class="sync-badge-slot">${syncBadgeHTML(state.syncStatus)}</span>
+      </div>
+      <div class="modal-sp-title">${sp.desc}</div>
+      <div class="modal-sp-cando" style="margin:4px 0 8px">✓ ${sp.cando}</div>
+      <div class="tp-badges" style="margin-bottom:12px">${tpBadges(sk.tp_range)}</div>
+      ${rows}
+      <button class="close-btn" onclick="closeModal()">Tutup</button>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+// ── Actions ────────────────────────────────────────────
+function switchSub(id) { setState({ activeSubject: id, expandedSK: null, modal: null }); render(); }
+function toggleSK(key) { setState({ expandedSK: state.expandedSK === key ? null : key }); render(); }
+function openModal(subId, skCode, spCode) { setState({ modal: { subId, skCode, spCode } }); render(); }
+function closeModal() {
+  const el = document.getElementById("modal-overlay");
+  if (el) el.remove();
+  setState({ modal: null });
+}
+
+function updateRecord(key, field, value, subjectId) {
+  const rec = { ...(state.records[key] || {}), [field]: value };
+  state.records[key] = rec;
+  renderSyncBadge();
+  saveRecord(key, rec, subjectId);
+  // Update progress bars without full re-render
+  render();
+}
+
+
+// ── Media / Evidence Photos ────────────────────────────
+if (!window.mediaStore) window.mediaStore = {};
+
+function renderGallery(key) {
+  const items = window.mediaStore[key] || [];
+  if (!items.length) return "";
+  return items.map((item, idx) => {
+    if (item.type === "video") {
+      return `<div class="media-thumb-wrap"><video class="video-thumb" src="${item.src}" onclick="viewMedia('${item.src}','video')"></video><button class="media-del" onclick="deleteMedia('${key}',${idx})">&#x2715;</button></div>`;
+    }
+    return `<div class="media-thumb-wrap"><img class="media-thumb" src="${item.src}" onclick="viewMedia('${item.src}','image')"><button class="media-del" onclick="deleteMedia('${key}',${idx})">&#x2715;</button></div>`;
+  }).join("");
+}
+
+function addMedia(key, subjectId, input) {
+  const files = Array.from(input.files);
+  if (!files.length) return;
+  if (!window.mediaStore[key]) window.mediaStore[key] = [];
+  let loaded = 0;
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const isVideo = file.type.startsWith("video");
+      window.mediaStore[key].push({ src: e.target.result, type: isVideo ? "video" : "image" });
+      loaded++;
+      if (loaded === files.length) {
+        const safeKey = key.replace(/[^a-z0-9]/gi, "_");
+        const galEl = document.getElementById("gal_" + safeKey);
+        if (galEl) galEl.innerHTML = renderGallery(key);
+        const rec = Object.assign({}, state.records[key] || {});
+        const count = window.mediaStore[key].length;
+        rec.evidence = (rec.evidence ? rec.evidence.replace(/ ?\[\d+ fail media\]/g,"").trim() + " " : "") + "[" + count + " fail media]";
+        state.records[key] = rec;
+        saveRecord(key, rec, subjectId);
+      }
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value = "";
+}
+
+function deleteMedia(key, idx) {
+  if (window.mediaStore[key]) window.mediaStore[key].splice(idx, 1);
+  const safeKey = key.replace(/[^a-z0-9]/gi, "_");
+  const galEl = document.getElementById("gal_" + safeKey);
+  if (galEl) galEl.innerHTML = renderGallery(key);
+}
+
+function viewMedia(src, type) {
+  const overlay = document.createElement("div");
+  overlay.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.9);z-index:200;display:flex;align-items:center;justify-content:center;";
+  overlay.onclick = () => overlay.remove();
+  if (type === "video") {
+    overlay.innerHTML = "<video src=\"" + src + "\" controls autoplay style=\"max-width:95vw;max-height:90vh;border-radius:8px;\"></video>";
+  } else {
+    overlay.innerHTML = "<img src=\"" + src + "\" style=\"max-width:95vw;max-height:90vh;border-radius:8px;object-fit:contain;\">";
+  }
+  document.body.appendChild(overlay);
+}
+
+// ── Boot ───────────────────────────────────────────────
+render();
+loadRecords();
+
+// ── Service Worker registration ────────────────────────
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+}
+</script>
+</body>
+</html>
